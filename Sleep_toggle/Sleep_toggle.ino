@@ -6,7 +6,8 @@
 #include <TimeLib.h>
 #include <Wire.h>             //http://arduino.cc/en/Reference/Wire
 
-int counter;
+int counter; //used to count seconds while awake
+int lap; //used to count times the loop routine has been called
 
 #define SQW_PIN 2             //Connect SQW from the DS323 to pin 2
 
@@ -39,8 +40,8 @@ void setup()
     pinMode(SQW_PIN, INPUT_PULLUP);
     attachInterrupt(INT0, alarmIsr, FALLING);
 
-    //Set an alarm at every 20th second of every minute.
-    RTC.setAlarm(ALM1_MATCH_SECONDS, 10, 0, 0, 1);    //daydate parameter should be between 1 and 7
+    //Set an alarm at every 1st second of every minute.
+    RTC.setAlarm(ALM1_MATCH_SECONDS, 0, 0, 0, 1);    //daydate parameter should be between 1 and 7
     RTC.alarm(ALARM_1);                   //ensure RTC interrupt flag is cleared
     RTC.alarmInterrupt(ALARM_1, true);
 
@@ -49,10 +50,14 @@ void setup()
 //    RTC.alarm(ALARM_2);                   //ensure RTC interrupt flag is cleared
 //    RTC.alarmInterrupt(ALARM_2, true);
 
-//    //Set a daily alarm.
-//    RTC.setAlarm(ALM2_MATCH_HOURS, 0, 18, 17, 1);    //daydate parameter should be between 1 and 7
-//    RTC.alarm(ALARM_2);                   //ensure RTC interrupt flag is cleared
-//    RTC.alarmInterrupt(ALARM_2, true);
+    //Set a daily alarm.
+    RTC.setAlarm(ALM2_MATCH_HOURS, 0, 18, 17, 1);    //daydate parameter should be between 1 and 7
+    RTC.alarm(ALARM_2);                   //ensure RTC interrupt flag is cleared
+    RTC.alarmInterrupt(ALARM_2, true);
+
+   sleep();
+
+
 }
 
 volatile boolean alarmIsrWasCalled = false;
@@ -62,31 +67,24 @@ void alarmIsr()
     alarmIsrWasCalled = true;
 }
 
-void loop(void)
-{
-
-   sleep();
-   
+void loop()
+{   
    alarmState();
+
+   //While awake, let's switch to ALARM_1 to wake the arduino for sensing every X minutes
+   RTC.alarmInterrupt(ALARM_1, true);
+   RTC.alarmInterrupt(ALARM_2, false);
+
   
 
    Serial.println(counter++);
-    delay(1000);
+   delay(1000);
 
     if (counter == 10){
+      lap++;
+      Serial << "Lap: " << lap << ' ';
       counter = 0;
-      Serial.println("Sleep");
-//      sleep();
-
- // Allow wake up pin to trigger interrupt on low.
-    attachInterrupt(0, wakeUp, LOW);
-    
-    // Enter power down state with ADC and BOD module disabled.
-    // Wake up when wake up pin is low.
-    LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF); 
-    
-    // Disable external pin interrupt on wake up pin.
-    detachInterrupt(0);
+      sleep();
     }
       
 }
